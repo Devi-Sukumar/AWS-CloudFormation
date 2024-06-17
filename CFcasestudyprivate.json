@@ -1,0 +1,308 @@
+{
+	"Parameters":{
+        "MasterUsername": {
+            "Description": "Database administration name. First character must be a letter and can not be 'root'.",
+            "Type": "String",
+            "Default": "rdsroot"
+        },
+        "MasterUserPassword": {
+            "NoEcho": "true",
+            "Description": "Database administration password. Minimum of 8 alphanumeric characters (pattern of [a-zA-Z0-9]).",
+            "Type": "String",
+            "MinLength": "8",
+            "AllowedPattern": "[a-zA-Z0-9!?]*",
+            "ConstraintDescription": "Must only contain upper and lowercase letters and numbers"
+        }
+    },
+    "Resources": {
+		"VPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": "192.168.0.0/16",
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CFtemplateRes"
+					}
+				]
+			}
+		},
+		"PublicSubnet": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.0.0/17",
+				"MapPublicIpOnLaunch": true,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicSubWebtier"
+					}
+				],
+                "AvailabilityZone": "us-east-1a",
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+        "PrivateSubnet1": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.128.0/18",
+				"MapPublicIpOnLaunch": false,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PrivateSubApptier"
+					}
+				],
+                "AvailabilityZone": "us-east-1b",
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+        "PrivateSubnet2": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.192.0/19",
+				"MapPublicIpOnLaunch": false,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PrivateSubDBtier1"
+					}
+				],
+                "AvailabilityZone": "us-east-1c",
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+        "PrivateSubnet3": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.224.0/19",
+				"MapPublicIpOnLaunch": false,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PrivateSubDBtier2"
+					}
+				],
+                "AvailabilityZone": "us-east-1d",
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+		"InternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "myCFIGW"
+					}
+				]
+			}
+		},
+		"VPCGatewayAttachment": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"InternetGatewayId": {"Ref":"InternetGateway"},
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+      
+        "PublicRouteTable":{
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicRouteTable"
+					}
+				],
+                "VpcId" : {"Ref":"VPC"}
+            }
+        },
+        "PublicRoute":{
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId" : {"Ref":"InternetGateway"},
+                "RouteTableId" : {"Ref":"PublicRouteTable"} 
+            }
+        },
+
+        "PubSubRTAssoc":{
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties" : {
+                    "RouteTableId" : {"Ref":"PublicRouteTable"},
+                    "SubnetId" : {"Ref":"PublicSubnet"}
+                  }
+        },
+              
+
+    
+        "PrivateAppRouteTable":{
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PrivateAppRouteTable"
+					}
+				],
+                "VpcId" : {"Ref":"VPC"}
+            }
+        },
+
+
+        "PriSub2RTAssoc":{
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties" : {
+                    "RouteTableId" : {"Ref":"PrivateDBRouteTable"},
+                    "SubnetId" : {"Ref":"PrivateSubnet2"}
+                  }
+        },
+
+        "PriSub3RTAssoc":{
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties" : {
+                    "RouteTableId" : {"Ref":"PrivateDBRouteTable"},
+                    "SubnetId" : {"Ref":"PrivateSubnet3"}
+                  }
+        },
+
+		"PublicInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": "ami-0c101f26f147fa7fd",
+				"InstanceType": "t2.micro",
+				"KeyName": "casestudy",
+				"SubnetId": {"Ref":"PublicSubnet"},
+                "SecurityGroupIds":[{"Ref":"PublicInstanceSG"}],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicWebinstance"
+					}
+				]
+			}
+		},
+        "PublicInstanceSG" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Allow http & ssh to client host",
+                "VpcId" : {"Ref" : "VPC"},
+                "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 80,
+                    "ToPort" : 80,
+                    "CidrIp" : "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "0.0.0.0/0"
+                }],
+                "SecurityGroupEgress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 80,
+                    "ToPort" : 80,
+                    "CidrIp" : "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "0.0.0.0/0"
+                }]
+            }
+        },
+        "PrivateInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": "ami-0c101f26f147fa7fd",
+				"InstanceType": "t2.micro",
+				"KeyName": "casestudy",
+				"SubnetId": {"Ref":"PrivateSubnet1"},
+                "SecurityGroupIds":[{"Ref":"PrivateInstanceSG1"}],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PrivateAppinstance"
+					}
+				]
+			},
+            "DependsOn" : "DBInstance"
+		},
+        "PrivateInstanceSG1" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Allow ssh to Web Instance",
+                "VpcId" : {"Ref" : "VPC"},
+                "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "192.168.0.0/17"
+                }],
+                "SecurityGroupEgress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "192.168.0.0/17"
+                }]
+            }
+        },
+        "DBSubnetgroups":{
+            "Type" : "AWS::RDS::DBSubnetGroup",
+            "Properties" : {
+                "DBSubnetGroupDescription": "Subnet groups for DB",
+                "SubnetIds" : [{"Ref" : "PrivateSubnet2"}, {"Ref" : "PrivateSubnet3"} ],
+                "Tags" : [{
+                    "Key": "Name",
+                    "Value": "MySQL DB instance Subnet group"
+                }]
+            }
+        },
+        
+   
+        
+        "DBEC2SecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription": "Open database for access",
+                "VpcId" : {"Ref" : "VPC"},
+                "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 3306,
+                    "ToPort" : 3306,
+                    "CidrIp" : "192.168.128.0/18"
+                }]
+            }
+        },
+        "DBInstance" : {
+            "Type": "AWS::RDS::DBInstance",
+            "Properties": {
+                "AllocatedStorage" : 20,
+                "DBInstanceClass" : "db.t3.micro",
+                "DBName" : "cfmysqldb",
+
+                "DBSubnetGroupName" : { "Ref" : "DBSubnetgroups" },
+                "DeleteAutomatedBackups" : false,
+                "DeletionProtection": false,
+                "Engine" : "mysql",
+                "EngineVersion" : "8.0.33",
+        
+                "ManageMasterUserPassword" : false,
+                "MasterUsername" : { "Ref" : "MasterUsername" },
+                "MasterUserPassword" :  { "Ref" : "MasterUserPassword" },
+          
+                "Port" : 3306,
+          
+                "PubliclyAccessible" : false,
+                "Tags" : [{
+                    "Key": "Name",
+                    "Value": "MySQL DB instance"
+                }],
+                "VPCSecurityGroups" : [ { "Fn::GetAtt": [ "DBEC2SecurityGroup", "GroupId" ] } ]
+            }
+        }
+	}
+}

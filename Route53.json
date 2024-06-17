@@ -1,0 +1,208 @@
+{
+    
+    "Resources": {
+		"VPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": "192.168.0.0/16",
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "myVPC"
+					}
+				]
+			}
+		},
+		"PublicSubnet": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.0.0/17",
+				"MapPublicIpOnLaunch": true,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicSubWebtier"
+					}
+				],
+                "AvailabilityZone": "us-east-1a",
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+
+		"InternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "myCFIGW"
+					}
+				]
+			}
+		},
+		"VPCGatewayAttachment": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"InternetGatewayId": {"Ref":"InternetGateway"},
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+      
+        "PublicRouteTable":{
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicRouteTable"
+					}
+				],
+                "VpcId" : {"Ref":"VPC"}
+            }
+        },
+        "PublicRoute":{
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId" : {"Ref":"InternetGateway"},
+                "RouteTableId" : {"Ref":"PublicRouteTable"} 
+            }
+        },
+
+        "PubSubRTAssoc":{
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties" : {
+                    "RouteTableId" : {"Ref":"PublicRouteTable"},
+                    "SubnetId" : {"Ref":"PublicSubnet"}
+                  }
+        },
+              
+		"PublicInstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": "ami-0c101f26f147fa7fd",
+				"InstanceType": "t2.micro",
+				"KeyName": "casestudy",
+				"SubnetId": {"Ref":"PublicSubnet"},
+                "SecurityGroupIds":[{"Ref":"PublicInstanceSG"}],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicWebinstance"
+					}
+				]
+			}
+		},
+        "PublicInstanceSG" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Allow http & ssh to client host",
+                "VpcId" : {"Ref" : "VPC"},
+                "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 80,
+                    "ToPort" : 80,
+                    "CidrIp" : "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "0.0.0.0/0"
+                }],
+                "SecurityGroupEgress" : [{
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 80,
+                    "ToPort" : 80,
+                    "CidrIp" : "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol" : "tcp",
+                    "FromPort" : 22,
+                    "ToPort" : 22,
+                    "CidrIp" : "0.0.0.0/0"
+                }]
+            }
+        },
+
+        "DNS": {
+            "Type": "AWS::Route53::HostedZone",
+            "Properties": {
+               "HostedZoneConfig": {
+                  "Comment": "Myhostedzoneforexample"
+               },
+               "Name" : "cloudenv.com",
+      
+               "HostedZoneTags": [
+                  {
+                     "Key": "Name",
+                     "Value": "Hosted zone"
+                  }
+               ]
+            }
+         },
+
+        "myDNSRecord" : {
+            "Type" : "AWS::Route53::RecordSet",
+            "Properties" : {
+                "HostedZoneId" : { 
+                    "Ref" : "DNS" 
+                 },
+               "Comment" : "DNS name for my instance.",  
+               "Name" : "test.cloudenv.com.",
+
+               "Type" : "A",
+               "TTL" : "900",
+               "ResourceRecords" : [
+                  { 
+                     "Fn::GetAtt" : [ "PublicInstance", "PublicIp" ] 
+                  }
+               ]
+            }
+         }
+        
+
+	},
+    "Outputs": {
+        "InstanceId": {
+            "Description": "InstanceId of the newly created EC2 instance",
+            "Value": {"Ref" : "PublicInstance"}
+        },
+        
+        "AZ": {
+            "Description": "Availability Zone of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [
+                    "PublicInstance",
+                    "AvailabilityZone"
+                ]
+            }
+        },
+        "PublicDNS": {
+            "Description": "Public DNSName of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [
+                    "PublicInstance",
+                    "PublicDnsName"
+                ]
+            }
+        },
+        "PublicIP": {
+            "Description": "Public IP address of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [
+                    "PublicInstance",
+                    "PublicIp"
+                ]
+            }
+        },
+        "DNSrecord": {
+            "Description": "DNS name for my instance.",
+            "Value": {"Ref":"myDNSRecord"}
+
+        }
+        
+    }
+    
+
+}

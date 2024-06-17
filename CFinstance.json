@@ -1,0 +1,63 @@
+{
+	"Resources": {
+		"VPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": "192.168.0.0/16",
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CFtemplateRes"
+					}
+				]
+			}
+		},
+		"Subnet": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"CidrBlock": "192.168.128.0/17",
+				"MapPublicIpOnLaunch": true,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "PublicSubCFRes"
+					}
+				],
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+		"InternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "myCFIGW"
+					}
+				]
+			}
+		},
+		"VPCGatewayAttachment": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"InternetGatewayId": {"Ref":"InternetGateway"},
+				"VpcId": {"Ref":"VPC"}
+			}
+		},
+		"Instance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": "ami-0c101f26f147fa7fd",
+				"InstanceType": "t2.micro",
+				"KeyName": "casestudy",
+				"SubnetId": {"Ref":"Subnet"},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CFinstance"
+					}
+				]
+			}
+		}
+	}
+}
